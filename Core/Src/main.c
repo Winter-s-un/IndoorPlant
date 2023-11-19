@@ -18,10 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "dma.h"
 #include "i2c.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
+#include "string.h"
+#include "stdio.h"
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -46,8 +50,11 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-float temperature = 0.0f;
+float temperature = 0.00;
 float humidity;
+static char buffer[] = "\r\nData: ";
+ static volatile int a = 0;
+ static char dididi[20];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -59,11 +66,17 @@ void SystemClock_Config(void);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
+void floatToString(float value, char *buffer, int bufferSize, int precision) {
+    int intValue = (int)value;
+    int fractional = (int)((value - intValue) * 1000000); // 6位小数，可以根据需要调整
+    snprintf(buffer, bufferSize, "%d.%06d", intValue, fractional);
+}
+
 void LED_Blink(void) {
-    static uint32_t previousMillis = 0;
+    uint32_t previousMillis = 0;
     uint32_t currentMillis = HAL_GetTick();
 
-    if (currentMillis - previousMillis >= 200) {
+    if (currentMillis - previousMillis >= 500) {
       //control the LED Blink
       HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
       previousMillis = currentMillis;
@@ -72,7 +85,7 @@ void LED_Blink(void) {
 
 
 void TempHumidityRead(void) {
-    static uint32_t previousMillis = 0;
+    uint32_t previousMillis = 0;
     uint32_t currentMillis = HAL_GetTick();
 
     if (currentMillis - previousMillis >= 200) {
@@ -102,6 +115,32 @@ void TempHumidityRead(void) {
     }
 }
 
+void BlueToothSend(void)
+{
+    uint32_t previousMillis = 0;
+    uint32_t currentMillis = HAL_GetTick();
+    if (currentMillis - previousMillis >= 200)
+    {
+      float t = temperature;
+      char byteBuffer[21];
+
+
+      floatToString(t, dididi, sizeof(dididi), 6);
+      // // uint32_t tempData;
+      //memcpy(&dididi, &t, sizeof(19));
+      // // tempData = (tempData); 
+      // memcpy(buffer, &t, sizeof(50));
+      
+      // dididi = byteBuffer;
+      // static int rData[4] = {0};
+    
+       HAL_UART_Transmit(&huart1, (uint8_t*)dididi, sizeof(dididi)-1, HAL_MAX_DELAY);
+
+      //HAL_UART_Receive(&huart1,(uint8_t*)rData,sizeof(rData)-1, HAL_MAX_DELAY);
+      a++;
+      previousMillis = currentMillis;
+    }
+}
 
 /* USER CODE END 0 */
 
@@ -133,11 +172,12 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_DMA_Init();
   MX_USART1_UART_Init();
   MX_I2C1_Init();
   MX_TIM1_Init();
   /* USER CODE BEGIN 2 */
-
+  
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -155,8 +195,12 @@ int main(void)
 
   TempHumidityRead();
 
+ 
+
   temp = temperature;
   humid = humidity;
+  
+   BlueToothSend();
   }
   /* USER CODE END 3 */
 }
